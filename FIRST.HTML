@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dual Spin the Wheel</title>
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      background-color: #1a1a1a;
+      color: white;
+      font-family: Arial, sans-serif;
+      height: 100%;
+      overflow: hidden;
+    }
+    body {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      padding: 20px;
+    }
+    .wheels {
+      display: flex;
+      justify-content: center;
+      flex-wrap: wrap;
+      gap: 40px;
+      margin-top: 20px;
+      flex-grow: 1;
+      width: 100%;
+    }
+    canvas {
+      background-color: #2a2a2a;
+      border-radius: 50%;
+      transition: width 0.3s, height 0.3s;
+    }
+    button, input {
+      margin: 10px;
+      padding: 10px 20px;
+      background-color: #444;
+      color: white;
+      border: none;
+      cursor: pointer;
+      border-radius: 5px;
+    }
+    .controls {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      margin-top: 20px;
+    }
+    .fullscreen .controls > :not(#spinButtonFS) {
+      display: none !important;
+    }
+    .hidden {
+      display: none !important;
+    }
+    .fullscreen canvas {
+      width: 45vw !important;
+      height: 45vw !important;
+    }
+    @media (min-width: 1200px) {
+      .fullscreen canvas {
+        width: 40vw !important;
+        height: 40vw !important;
+      }
+    }
+    .pointer {
+      width: 0;
+      height: 0;
+      border-left: 10px solid transparent;
+      border-right: 10px solid transparent;
+      border-bottom: 20px solid red;
+      position: absolute;
+      top: -25px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 10;
+    }
+    .result-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.85);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      flex-direction: column;
+      z-index: 1000;
+    }
+    .result-box {
+      background-color: #222;
+      padding: 30px;
+      border-radius: 10px;
+      text-align: center;
+      box-shadow: 0 0 10px rgba(255,255,255,0.2);
+    }
+    .result-box h2 {
+      font-size: 2rem;
+      margin-bottom: 20px;
+    }
+    .close-result {
+      background-color: #900;
+      margin-top: 20px;
+    }
+  </style>
+</head>
+<body>
+  <h1 id="title">Spin the Genre + Object Wheel</h1>
+
+  <div class="controls">
+    <div>
+      <input type="text" id="genreInput" placeholder="Add Genre">
+      <button onclick="addGenre()">Add Genre</button>
+    </div>
+    <div>
+      <input type="text" id="itemInput" placeholder="Add Object">
+      <button onclick="addItem()">Add Object</button>
+    </div>
+    <button id="spinButtonFS" onclick="spinBoth()">Spin Both</button>
+    <button onclick="toggleControls()">Toggle Menu</button>
+    <button onclick="toggleFullScreen()">Toggle Fullscreen</button>
+  </div>
+
+  <div class="wheels">
+    <div style="position: relative;">
+      <div class="pointer"></div>
+      <canvas id="wheel1" width="400" height="400"></canvas>
+    </div>
+    <div style="position: relative;">
+      <div class="pointer"></div>
+      <canvas id="wheel2" width="400" height="400"></canvas>
+    </div>
+  </div>
+
+  <div id="resultOverlay" class="result-overlay hidden">
+    <div class="result-box">
+      <h2 id="resultText"></h2>
+      <button class="close-result" onclick="closeResult()">✕ Spin Again</button>
+    </div>
+  </div>
+
+  <script>
+    let genres = ["Mythology", "Spy Thriller", "Comedy", "Sci-Fi", "Fantasy", "Mystery", "Adventure", "Drama", "Thriller", "Action", "Fairy Tale", "Zombie", "Love Story", "Detective", "Space", "Superhero", "Ghost Story", "Bollywood", "Aliens", "Pirates", "Alien Invasion", "Horror", "Western", "Cyberpunk", "Time Travel", "Supernatural", "Rom-Com", "Crime Thriller", "Apocalypse", "Historical Drama"];
+    let items = ["Detergent", "Toaster", "Alarm Clock", "Water Bottle", "Shampoo", "Shoes", "Backpack", "Phone Charger", "Coffee Mug", "Deodorant", "Notebook", "Perfume", "Vacuum Cleaner", "Sunglasses", "Noodles", "Toothbrush", "Pillow", "Lip Balm", "Fan", "Soap", "Fitness", "Washing Machine", "Hair Dryer", "Mirror", "Air Freshener", "Pen Drive", "Water Purifier", "Mosquito Repellent", "Smartwatch", "Juicer", "Ice Cream Maker"];
+
+    const canvas1 = document.getElementById("wheel1");
+    const canvas2 = document.getElementById("wheel2");
+    const ctx1 = canvas1.getContext("2d");
+    const ctx2 = canvas2.getContext("2d");
+
+    function drawWheel(canvas, ctx, items, angle = 0) {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      const radius = canvas.width / 2;
+      const arc = Math.PI * 2 / items.length;
+      items.forEach((item, i) => {
+        ctx.beginPath();
+        ctx.fillStyle = i % 2 === 0 ? "#3a3a3a" : "#2a2a2a";
+        ctx.moveTo(radius, radius);
+        ctx.arc(radius, radius, radius, i * arc + angle, (i + 1) * arc + angle);
+        ctx.fill();
+        ctx.save();
+        ctx.translate(radius, radius);
+        ctx.rotate((i + 0.5) * arc + angle);
+        ctx.textAlign = "right";
+        ctx.fillStyle = "white";
+        ctx.font = radius * 0.09 + "px sans-serif";
+        ctx.fillText(item, radius - 10, 5);
+        ctx.restore();
+      });
+    }
+
+    function getSelectedItemIndex(items, angle) {
+      const arc = 2 * Math.PI / items.length;
+      const offset = (3 * Math.PI / 2 - angle + 2 * Math.PI) % (2 * Math.PI);
+      return Math.floor(offset / arc) % items.length;
+    }
+
+    function spinWheelTogether(items, canvas, ctx, onComplete) {
+      let angle = 0;
+      let velocity = Math.random() * 0.3 + 0.25;
+      const deceleration = 0.985;
+
+      function animate() {
+        angle += velocity;
+        velocity *= deceleration;
+        drawWheel(canvas, ctx, items, angle);
+
+        if (velocity > 0.002) {
+          requestAnimationFrame(animate);
+        } else {
+          const index = getSelectedItemIndex(items, angle);
+          const result = items.splice(index, 1)[0];
+          drawWheel(canvas, ctx, items);
+          onComplete(result);
+        }
+      }
+
+      animate();
+    }
+
+    function spinBoth() {
+      if (genres.length === 0 || items.length === 0) {
+        alert("All options have been used!");
+        return;
+      }
+
+      let genreResult = null;
+      let itemResult = null;
+      let completed = 0;
+      function checkCompletion() {
+        completed++;
+        if (completed === 2) {
+          document.getElementById("resultText").textContent = `Result: ${genreResult} + ${itemResult}`;
+          document.getElementById("resultOverlay").classList.remove("hidden");
+        }
+      }
+
+      spinWheelTogether(genres, canvas1, ctx1, result => {
+        genreResult = result;
+        checkCompletion();
+      });
+      spinWheelTogether(items, canvas2, ctx2, result => {
+        itemResult = result;
+        checkCompletion();
+      });
+    }
+
+    function closeResult() {
+      document.getElementById("resultOverlay").classList.add("hidden");
+    }
+
+    function addGenre() {
+      const input = document.getElementById("genreInput");
+      if (input.value.trim()) {
+        genres.push(input.value.trim());
+        drawWheel(canvas1, ctx1, genres);
+        input.value = "";
+      }
+    }
+
+    function addItem() {
+      const input = document.getElementById("itemInput");
+      if (input.value.trim()) {
+        items.push(input.value.trim());
+        drawWheel(canvas2, ctx2, items);
+        input.value = "";
+      }
+    }
+
+    function toggleControls() {
+      document.querySelector(".controls").classList.toggle("hidden");
+    }
+
+    function toggleFullScreen() {
+      if (!document.fullscreenElement) {
+        document.documentElement.requestFullscreen();
+        document.body.classList.add("fullscreen");
+      } else {
+        document.exitFullscreen();
+        document.body.classList.remove("fullscreen");
+      }
+    }
+
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") spinBoth();
+    });
+
+    drawWheel(canvas1, ctx1, genres);
+    drawWheel(canvas2, ctx2, items);
+  </script>
+</body>
+</html>
